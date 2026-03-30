@@ -1,7 +1,12 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import summarize, history, auth
 from app.utils.database import Base, engine
+
+# Load environment variables first
+load_dotenv()
 
 # Create all database tables
 Base.metadata.create_all(bind=engine)

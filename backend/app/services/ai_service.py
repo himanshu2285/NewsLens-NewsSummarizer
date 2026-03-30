@@ -1,9 +1,18 @@
 import os
+from dotenv import load_dotenv
 import anthropic
 import json
 import re
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+# Load environment variables
+load_dotenv()
+
+# Initialize Anthropic client
+api_key = os.getenv("ANTHROPIC_API_KEY")
+if not api_key:
+    raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+
+client = anthropic.Anthropic(api_key=api_key)
 
 CATEGORIES = ["Tech", "Sports", "Business", "Health", "Politics", "Science", "Entertainment", "World", "Other"]
 

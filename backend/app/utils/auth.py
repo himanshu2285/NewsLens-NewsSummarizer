@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -9,11 +10,18 @@ from sqlalchemy.orm import Session
 from app.utils.database import get_db
 from app.models.models import User
 
-SECRET_KEY = os.getenv("SECRET_KEY", "supersecret-change-in-production")
+# Load environment variables
+load_dotenv()
+
+# Get SECRET_KEY from .env
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable is not set")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
