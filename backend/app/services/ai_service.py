@@ -1,30 +1,24 @@
 import os
 from dotenv import load_dotenv
-import ollama
 import json
 import re
+import httpx
 
-# Load environment variables
+
 load_dotenv()
 
 # Initialize Ollama client with API key authentication
-ollama_base_host = os.getenv("OLLAMA_HOST", "https://api.ollama.ai")
+ollama_host = os.getenv("OLLAMA_HOST", "https://ollama.com/api")
 ollama_api_key = os.getenv("OLLAMA_API_KEY")
-model = os.getenv("OLLAMA_MODEL", "llama2")
+model = os.getenv("OLLAMA_MODEL", "gpt-oss:120b")
 
 if not ollama_api_key:
     raise ValueError("OLLAMA_API_KEY environment variable is not set")
 
-# Include API key in the host URL for authentication
-# Format: https://api-key@host
-if "://" in ollama_base_host:
-    protocol, rest = ollama_base_host.split("://", 1)
-    ollama_host = f"{protocol}://{ollama_api_key}@{rest}"
-else:
-    ollama_host = ollama_base_host
 
-# Create Ollama client with remote host
-client = ollama.Client(host=ollama_host)
+# Create HTTP client with Authorization header for cloud API
+headers = {"Authorization": f"Bearer {ollama_api_key}"}
+http_client = httpx.Client(headers=headers, timeout=120.0)
 
 CATEGORIES = ["Tech", "Sports", "Business", "Health", "Politics", "Science", "Entertainment", "World", "Other"]
 
@@ -61,13 +55,19 @@ def summarize_and_classify(text: str) -> dict:
     # Construct the full prompt with system message
     full_prompt = f"{SYSTEM_PROMPT}\n\n{prompt}"
 
+    # Make API call to Ollama cloud endpoint with Authorization header
     try:
-        response = client.generate(
-            model=model,
-            prompt=full_prompt,
-            stream=False
+        api_response = http_client.post(
+            f"{ollama_host}/generate",
+            json={
+                "model": model,
+                "prompt": full_prompt,
+                "stream": False
+            }
         )
-        raw = response.get("response", "").strip()
+        api_response.raise_for_status()
+        response_data = api_response.json()
+        raw = response_data.get("response", "").strip()
     except Exception as e:
         raise ValueError(f"Ollama API error: {str(e)}")
 
