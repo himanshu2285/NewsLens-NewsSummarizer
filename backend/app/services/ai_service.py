@@ -7,10 +7,23 @@ import re
 # Load environment variables
 load_dotenv()
 
-# Initialize Ollama client
-ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+# Initialize Ollama client with API key authentication
+ollama_base_host = os.getenv("OLLAMA_HOST", "https://api.ollama.ai")
+ollama_api_key = os.getenv("OLLAMA_API_KEY")
 model = os.getenv("OLLAMA_MODEL", "llama2")
 
+if not ollama_api_key:
+    raise ValueError("OLLAMA_API_KEY environment variable is not set")
+
+# Include API key in the host URL for authentication
+# Format: https://api-key@host
+if "://" in ollama_base_host:
+    protocol, rest = ollama_base_host.split("://", 1)
+    ollama_host = f"{protocol}://{ollama_api_key}@{rest}"
+else:
+    ollama_host = ollama_base_host
+
+# Create Ollama client with remote host
 client = ollama.Client(host=ollama_host)
 
 CATEGORIES = ["Tech", "Sports", "Business", "Health", "Politics", "Science", "Entertainment", "World", "Other"]
@@ -48,23 +61,26 @@ def summarize_and_classify(text: str) -> dict:
     # Construct the full prompt with system message
     full_prompt = f"{SYSTEM_PROMPT}\n\n{prompt}"
 
-    response = client.generate(
-        model=model,
-        prompt=full_prompt,
-        stream=False
-    )
-
-    raw = response.get("response", "").strip()
+    try:
+        response = client.generate(
+            model=model,
+            prompt=full_prompt,
+            stream=False
+        )
+        raw = response.get("response", "").strip()
+    except Exception as e:
+        raise ValueError(f"Ollama API error: {str(e)}")
 
     # Strip accidental markdown fences
     raw = re.sub(r"^```json\s*", "", raw)
     raw = re.sub(r"^```\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
+    raw = raw.strip()
 
     try:
         result = json.loads(raw)
-    except json.JSONDecodeError:
-        raise ValueError(f"AI returned invalid JSON: {raw[:300]}")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"AI returned invalid JSON. Error: {str(e)}. Raw response: {raw[:500]}")
 
     # Validate structure
     if not isinstance(result.get("summary"), list) or not result.get("category"):
