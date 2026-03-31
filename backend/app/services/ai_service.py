@@ -1,18 +1,17 @@
 import os
 from dotenv import load_dotenv
-import anthropic
+import ollama
 import json
 import re
 
 # Load environment variables
 load_dotenv()
 
-# Initialize Anthropic client
-api_key = os.getenv("ANTHROPIC_API_KEY")
-if not api_key:
-    raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+# Initialize Ollama client
+ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+model = os.getenv("OLLAMA_MODEL", "llama2")
 
-client = anthropic.Anthropic(api_key=api_key)
+client = ollama.Client(host=ollama_host)
 
 CATEGORIES = ["Tech", "Sports", "Business", "Health", "Politics", "Science", "Entertainment", "World", "Other"]
 
@@ -38,7 +37,7 @@ Article:
 
 def summarize_and_classify(text: str) -> dict:
     """
-    Calls Claude to summarize and classify the article.
+    Calls Ollama to summarize and classify the article.
     Returns {"summary": [...], "category": "..."}.
     """
     prompt = USER_PROMPT_TEMPLATE.format(
@@ -46,14 +45,16 @@ def summarize_and_classify(text: str) -> dict:
         article_text=text[:6000]
     )
 
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1024,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt}]
+    # Construct the full prompt with system message
+    full_prompt = f"{SYSTEM_PROMPT}\n\n{prompt}"
+
+    response = client.generate(
+        model=model,
+        prompt=full_prompt,
+        stream=False
     )
 
-    raw = message.content[0].text.strip()
+    raw = response.get("response", "").strip()
 
     # Strip accidental markdown fences
     raw = re.sub(r"^```json\s*", "", raw)
